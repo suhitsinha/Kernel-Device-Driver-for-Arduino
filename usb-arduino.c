@@ -15,10 +15,10 @@
 #include <linux/kmod.h>
 
 /* Function headers */
-static int arduino_write(struct file *f, const char __user *buf, size_t count, loff_t *off);
+static ssize_t arduino_write(struct file *f, const char __user *buf, size_t count, loff_t *off);
 static int arduino_open(struct inode * inode, struct file * file);
 static int arduino_release(struct inode * inode, struct file * file);
-static int arduino_read(struct file * file, char __user * buf, size_t count, loff_t * off);
+static ssize_t arduino_read(struct file * file, char __user * buf, size_t count, loff_t * off);
 
 /* Global Variable Declarations */
 
@@ -66,7 +66,7 @@ static struct file_operations arduino_fops = {
 	.owner = THIS_MODULE,
 	.write = arduino_write,
 	.read = arduino_read,
-	.open =	arduino_open,
+	.open = arduino_open,
 	.release = arduino_release,
 };
 
@@ -88,7 +88,7 @@ static void arduino_write_callback(struct urb * submit_urb, struct pt_regs * reg
 	return;
 }
 
-static int arduino_read(struct file * f, char __user *buf, size_t len, loff_t *off)
+static ssize_t arduino_read(struct file * f, char __user *buf, size_t len, loff_t *off)
 {
 	int retval;
 	
@@ -97,9 +97,9 @@ static int arduino_read(struct file * f, char __user *buf, size_t len, loff_t *o
 
 	printk("Arduino Message: Inside Read Function.\n");
 
-	retval = usb_bulk_msg(dev, usb_rcvbulkpipe(dev, (unsigned int)mydev->bulk_in_endpoint->bEndpointAddress), 
+	retval = usb_bulk_msg(dev, usb_rcvbulkpipe(dev, (unsigned int)mydev->bulk_in_endpoint->bEndpointAddress),
 				mydev->bulk_in_buffer, len, &count_actual_read_len, 1);
-	printk("Count: %d\n", len);
+	printk("Count: %zu\n", len);
 	if (retval)
 	{
 		printk("Error: Could not submit Read URB. RetVal: %d\n", retval);
@@ -114,7 +114,7 @@ static int arduino_read(struct file * f, char __user *buf, size_t len, loff_t *o
 	return len;
 }
 
-static int arduino_write(struct file *f, const char __user *buf, size_t count, loff_t *off)
+static ssize_t arduino_write(struct file *f, const char __user *buf, size_t count, loff_t *off)
 {
 	int retval;
 	struct usb_arduino * mydev = safe_dev;
@@ -129,9 +129,9 @@ static int arduino_write(struct file *f, const char __user *buf, size_t count, l
 		return -1;
 	}
 	
-	usb_fill_bulk_urb(mydev->bulk_out_urb, dev, usb_sndbulkpipe(dev, (unsigned int)mydev->bulk_out_endpoint->bEndpointAddress), 
+	usb_fill_bulk_urb(mydev->bulk_out_urb, dev, usb_sndbulkpipe(dev, (unsigned int)mydev->bulk_out_endpoint->bEndpointAddress),
 			buff, count, (usb_complete_t)arduino_write_callback, dev);
-	
+
 	printk("Message from user: %s\n",(char *)buff);
 	retval = usb_submit_urb(mydev->bulk_out_urb, GFP_KERNEL);
 	if(retval)
@@ -177,7 +177,7 @@ static int arduino_probe(struct usb_interface * interface, const struct usb_devi
 	for (i = 0; i < arduino_currsetting->desc.bNumEndpoints; ++i) {
 		endpoint = &arduino_currsetting->endpoint[i].desc;
 		if (((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN)
-		    && ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
+			&& ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
 			== USB_ENDPOINT_XFER_BULK))
 		{
 			dev->bulk_in_endpoint = endpoint;
@@ -185,7 +185,7 @@ static int arduino_probe(struct usb_interface * interface, const struct usb_devi
 		}
 		
 		if (((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT)
-		    && ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
+			&& ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
 			== USB_ENDPOINT_XFER_BULK))
 		{
 			dev->bulk_out_endpoint = endpoint;
